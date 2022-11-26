@@ -20,9 +20,9 @@ class PatreonOAuth2Adapter(OAuth2Adapter):
     authorize_url = "https://www.patreon.com/oauth2/authorize"
     profile_url = "{0}/{1}".format(
         API_URL,
-        "identity?include=memberships&fields%5Buser%5D=email,first_name,"
-        "full_name,image_url,last_name,social_connections,"
-        "thumb_url,url,vanity"
+        "identity?include=memberships,memberships.currently_entitled_tiers"
+        "&fields%5Buser%5D=email,first_name,full_name,image_url,last_name,social_connections,thumb_url,url,vanity"
+        "&fields%5Bmember%5D=last_charge_date,last_charge_status"
         if USE_API_V2
         else "current_user",
     )
@@ -32,25 +32,25 @@ class PatreonOAuth2Adapter(OAuth2Adapter):
             self.profile_url,
             headers={"Authorization": "Bearer " + token.token},
         )
-        extra_data = resp.json().get("data")
+        extra_data = resp.json().get('data')
 
-        if USE_API_V2:
-            # Extract tier/pledge level for Patreon API v2:
-            try:
-                member_id = extra_data["relationships"]["memberships"]["data"][0]["id"]
-                member_url = (
-                    "{0}/members/{1}?include="
-                    "currently_entitled_tiers&fields%5Btier%5D=title"
-                ).format(API_URL, member_id)
-                resp_member = requests.get(
-                    member_url,
-                    headers={"Authorization": "Bearer " + token.token},
-                )
-                pledge_title = resp_member.json()["included"][0]["attributes"]["title"]
-                extra_data["pledge_level"] = pledge_title
-            except (KeyError, IndexError):
-                extra_data["pledge_level"] = None
-                pass
+        all_tiers = []
+        try:
+            for i in resp.json().get('included')[0]['relationships']['currently_entitled_tiers']['data']:
+                all_tiers.append(i['id'])
+            if '7161052' in all_tiers:
+                extra_data['current_pledge'] = "Dungeon Merchant"
+            elif '3313110' in all_tiers:
+                extra_data['current_pledge'] = "Dungeon Architect"
+            elif '3313098' in all_tiers:
+                extra_data['current_pledge'] = "Dungeon Designer"
+            elif '3313135' in all_tiers:
+                extra_data['current_pledge'] = "Dungeon Planner"
+            else:
+                extra_data['current_pledge'] = None
+        except Exception as e:
+            extra_data['current_pledge'] = None
+            extra_data['current_pledge_error'] = str(repr(e))
 
         return self.get_provider().sociallogin_from_response(request, extra_data)
 
