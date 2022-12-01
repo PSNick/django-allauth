@@ -22,7 +22,7 @@ class PatreonOAuth2Adapter(OAuth2Adapter):
         API_URL,
         "identity?include=memberships,memberships.currently_entitled_tiers"
         "&fields%5Buser%5D=email,first_name,full_name,image_url,last_name,social_connections,thumb_url,url,vanity"
-        "&fields%5Bmember%5D=last_charge_date,last_charge_status"
+        "&fields%5Bmember%5D=last_charge_date,last_charge_status,next_charge_date,patron_status"
         if USE_API_V2
         else "current_user",
     )
@@ -51,6 +51,30 @@ class PatreonOAuth2Adapter(OAuth2Adapter):
         except Exception as e:
             extra_data['current_pledge'] = None
             extra_data['current_pledge_error'] = str(repr(e))
+
+        try:
+            extra_data['last_charge_date'] = resp.json().get('included')[0]['attributes']['last_charge_date']
+        except Exception as e:
+            extra_data['last_charge_date'] = None
+            extra_data['last_charge_date_error'] = str(repr(e))
+
+        try:
+            extra_data['last_charge_status'] = resp.json().get('included')[0]['attributes']['last_charge_status']
+        except Exception as e:
+            extra_data['last_charge_status'] = None
+            extra_data['last_charge_status_error'] = str(repr(e))
+
+        try:
+            extra_data['next_charge_date'] = resp.json().get('included')[0]['attributes']['next_charge_date']
+        except Exception as e:
+            extra_data['next_charge_date'] = None
+            extra_data['next_charge_date_error'] = str(repr(e))
+
+        try:
+            extra_data['patron_status'] = resp.json().get('included')[0]['attributes']['patron_status']
+        except Exception as e:
+            extra_data['patron_status'] = None
+            extra_data['patron_status_error'] = str(repr(e))
 
         return self.get_provider().sociallogin_from_response(request, extra_data)
 
